@@ -1,0 +1,11 @@
+=head1 NAME
+
+ Summit
+
+=head1 DESCRIPTION
+
+ A qpsmtpd based plugin which accepts forwarded basecamp emails, grabs the url,
+logs into basecamp and posts a comment which is located at the top of the
+forwarded email and is ended with two linefeeds or carraige returns.
+
+=cut

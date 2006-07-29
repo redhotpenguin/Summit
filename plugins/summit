@@ -1,0 +1,148 @@
+
+=head1 NAME
+
+summit
+
+=head1 DESCRIPTION
+
+This plugin handles replies to basecamp emails
+
+=head1 CONFIG
+
+As a final plugin before the queuing plugin insert this line:
+
+summit db_name $db_name db_user $db_user db_host $db_host db_pass $db_pass
+
+=head1 BUGS
+
+=head1 AUTHOR
+
+Written by Fred Moyer <fred@redhotpenguin.com>.
+
+=head1 COPYRIGHT
+
+Copyright 2006 Red Hot Penguin Consulting LLC
+
+=cut
+
+use lib "/home/fred/dev/summit/trunk/lib";
+
+use Data::Dumper;
+use DBI;
+use Summit::DB;
+use WWW::Mechanize;
+
+my $VERSION = '0.01';
+
+sub init {
+    my ( $self, $qp, %args ) = @_;
+
+	my $params_ref = Summit::DB->params(%args);
+    $self->{dbh_connect} = $params_ref;
+    $self->{mech} = WWW::Mechanize->new;
+}
+
+sub _authenticate {
+    my ( $self, $sender, $recipient ) = @_;
+
+    my $dbh = DBI->connect( @{$self->{dbh_connect}})
+      or die print STDERR "Could not establish db connection";
+    my $sql = <<SQL;
+SELECT basecamp_login, basecamp_pass from account
+WHERE sender = ? AND recipient = ? AND active = 't'
+SQL
+
+    my $sth = $dbh->prepare_cached($sql);
+    $sth->bind_param( 1, $sender );
+    $sth->bind_param( 2, $recipient );
+    my $rv = $sth->execute;
+    $self->log( LOGDEBUG, "authentication query, params $sender, $recipient");
+	unless ($rv) {
+        $self->log( LOGERROR, "Failed to execute $sql, err $DBI::errstr" );
+        return;
+    }
+
+    my $ary_ref = $sth->fetchrow_arrayref;
+    $self->log( LOGDEBUG, "Query results: " . Dumper($ary_ref ));
+	
+	$dbh->rollback;
+
+    if ( $ary_ref->[0] ){
+        return ( @{$ary_ref});
+    }
+    return;
+}
+
+sub _get_body {
+    my $transaction = shift;
+    $transaction->body_reset_pos;
+    my $body;
+    while ( my $line = $transaction->body_getline ) {
+        $body .= $line;
+    }
+    return $body;
+}
+
+sub hook_data_post {
+    my ( $self, $transaction ) = @_;
+
+    my @recipients = $transaction->recipients;
+    my $recipient = $recipients[0]->address;
+    my $sender = $transaction->sender->address; 
+    $self->log( LOGDEBUG, "recipient is " . Dumper($recipient) );
+    my ( $basecamp_login, $basecamp_pass ) = $self->_authenticate(
+            $sender,
+            $recipient,
+    );
+    unless ($basecamp_login && $basecamp_pass) {
+
+        # return the email to the sender with a message
+        $transaction->body_write("\n*****\nPlease sign up for an account\n");
+		$self->log(LOGINFO, "Sender $sender failed to authenticate");
+        return DENY;
+    }
+
+    my $body = _get_body($transaction);
+    my ($url) = $body =~ m{http://(\w+)\.(\w+)\.com/(\w+)}s;
+    my $post;
+    if ($url) {    # looks like it was forwarded inline
+                   # grab the comments they added
+        my @parts = split(/\n\n/);
+        $post = $parts[0];
+    }
+    elsif ( !$url ) {
+
+        # maybe it's forwarded as an attachment?
+        die;
+
+        # strip the attachment
+    }
+
+    my $mech = $self->{mech};
+    # Time to have some fun
+    $mech->get($url);
+
+    $mech->submit_form(
+        form_number => 1,
+        fields      => {
+            user_name => $basecamp_login,
+            password  => $basecamp_pass,
+        },
+    );
+
+    unless ( $mech->is_success ) {
+        $self->log( LOGERROR, "Problem logging in" );
+        die;
+    }
+
+    $mech->field( 'comment[post_id]' => $post );
+    $mech->click_button( value => "Post this Comment" );
+
+    unless ( $mech->is_success ) {
+        $self->log( LOGERROR, "Problem posting comment\n$body" );
+        die;
+    }
+
+    return DONE;
+}
+
