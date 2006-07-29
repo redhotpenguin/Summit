@@ -75,7 +75,7 @@ SQL
 
 sub _get_body {
     my $transaction = shift;
-    $transaction->body_reset_pos;
+    $transaction->body_resetpos;
     my $body;
     while ( my $line = $transaction->body_getline ) {
         $body .= $line;
