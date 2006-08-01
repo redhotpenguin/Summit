@@ -38,11 +38,8 @@ $dbh->commit;
 ok($entity->smtpsend(MailFrom => $sender), 'mail sent successfully');
 
 
-
-sleep 1;
-
 __DATA__
-Test response
+Another test response
 
 -----Original Message-----
 From: Fred Moyer <do-not-reply-P2980326@prdf.clientsection.com>

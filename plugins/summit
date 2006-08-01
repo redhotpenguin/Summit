@@ -39,7 +39,7 @@ sub init {
 
 	my $params_ref = Summit::DB->params(%args);
     $self->{dbh_connect} = $params_ref;
-    $self->{mech} = WWW::Mechanize->new;
+    $self->{mech} = WWW::Mechanize->new( cookie_jar => {} );
 }
 
 sub _authenticate {
@@ -103,17 +103,20 @@ sub hook_data_post {
     }
 
     my $body = _get_body($transaction);
-    my ($url) = $body =~ m{http://(\w+)\.(\w+)\.com/(\w+)}s;
+#	$self->log(LOGDEBUG, "Transaction body" . $body);
+    my ($url) = $body =~ m{(http://\w+\.(?:clientsection|projectpath)\.com/\w+)}s;
+	$self->log(LOGDEBUG, "hey I found an URL: $url");
     my $post;
     if ($url) {    # looks like it was forwarded inline
                    # grab the comments they added
-        my @parts = split(/\n\n/);
+        my @parts = split(/\n\n/, $body);
         $post = $parts[0];
+#		$self->log(LOGDEBUG, "the post is $post");
     }
     elsif ( !$url ) {
 
         # maybe it's forwarded as an attachment?
-        die;
+        require Carp && Carp::croak;
 
         # strip the attachment
     }
@@ -122,6 +125,8 @@ sub hook_data_post {
     # Time to have some fun
     $mech->get($url);
 
+#    $self->log(LOGDEBUG, "Response from login page get: \n" . 
+#		Dumper($mech->res->content));
     $mech->submit_form(
         form_number => 1,
         fields      => {
@@ -130,19 +135,24 @@ sub hook_data_post {
         },
     );
 
-    unless ( $mech->is_success ) {
+    unless ( $mech->res->is_success ) {
         $self->log( LOGERROR, "Problem logging in" );
-        die;
+		$transaction->body_write("Problem logging in");
+		return DENY "Could not log in";        
     }
 
-    $mech->field( 'comment[post_id]' => $post );
+    #$self->log( LOGDEBUG, "Page after logging in: \n" . Dumper($mech->res->content));
+    $mech->field( 'comment[body]' => $post );
     $mech->click_button( value => "Post this Comment" );
 
-    unless ( $mech->is_success ) {
+
+    #$self->log( LOGDEBUG, "Page content after posting: " . Dumper($mech->res->content));
+    unless ( $mech->res->is_success ) {
         $self->log( LOGERROR, "Problem posting comment\n$body" );
-        die;
+		$transaction->body_write("Problem posting comment");
+		return DENY "Could not post comment successfully";        
     }
 
-    return DONE;
+    return OK;
 }
 
