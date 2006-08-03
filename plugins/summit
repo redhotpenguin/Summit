@@ -86,6 +86,7 @@ sub _get_body {
 sub hook_data_post {
     my ( $self, $transaction ) = @_;
 
+	$DB::single = 1;
     my @recipients = $transaction->recipients;
     my $recipient = $recipients[0]->address;
     my $sender = $transaction->sender->address; 
