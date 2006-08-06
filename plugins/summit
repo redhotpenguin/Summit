@@ -124,20 +124,43 @@ sub summit_handler {
         my @parts = split( /\n\n/, $body );
         $post = $parts[0];
 
+        unless ($post =~ m/\S/g) { # better have found something
+            $self->log( LOGERROR, "Hmm no post message found" );
+            my $msg = <<MSG;
+\nWe couldn't find your comment.  Please make sure that it had at least two returns separating it from the original message\n\n
+MSG
+            $transaction->body_front_write($msg);
+            $transaction->recipients( $transaction->sender );
+            return OK;
+        }
+
         #		$self->log(LOGDEBUG, "the post is $post");
     }
     elsif ( !$url ) {
 
         # maybe it's forwarded as an attachment?
-        require Carp && Carp::croak;
-
-        # strip the attachment
+        $self->log( LOGERROR, "Hmm no url found" );
+        my $msg = "\nSorry we couldn't find a basecamp url in your message\n\n";
+        $transaction->body_front_write($msg);
+        $transaction->recipients( $transaction->sender );
+        return OK;
     }
 
+    # leave our mark
+    $post .= "\n\n- comment posted via summit (http://summit.redhotpenguin.com)";
+    
     my $mech = $self->{mech};
 
     # Time to have some fun
     $mech->get($url);
+    unless ($mech->success) {
+        # couldn't get the page
+        $self->log( LOGERROR, "Problem grabbing url $url" );
+        my $msg = "\nProblem grabbing url $url\n"; 
+        $transaction->body_front_write($msg);
+        $transaction->recipients( $transaction->sender );
+        return OK;
+    } 
 
     #    $self->log(LOGDEBUG, "Response from login page get: \n" .
     #		Dumper($mech->res->content));
@@ -151,8 +174,12 @@ sub summit_handler {
 
     unless ( $mech->res->is_success ) {
         $self->log( LOGERROR, "Problem logging in" );
-        $transaction->body_write("Problem logging in");
-        return ( DENY, "Could not log in" );
+        my $msg = "\nProblem logging in, username " . 
+            $self->{'basecamp_login'} .
+            ", pass " . $self->{basecamp_pass} . "\n\n";
+        $transaction->body_front_write($msg);
+        $transaction->recipients( $transaction->sender );
+        return OK;
     }
 
 #$self->log( LOGDEBUG, "Page after logging in: \n" . Dumper($mech->res->content));
@@ -162,10 +189,14 @@ sub summit_handler {
 #$self->log( LOGDEBUG, "Page content after posting: " . Dumper($mech->res->content));
     unless ( $mech->res->is_success ) {
         $self->log( LOGERROR, "Problem posting comment\n$body" );
-        $transaction->body_write("Problem posting comment");
-        return ( DENY, "Could not post comment successfully" );
+        $transaction->body_front_write("\nProblem posting comment\n");
+        $transaction->recipients( $transaction->sender );
+        return OK;
     }
-
+    
+    $transaction->recipients( $transaction->sender );
+    my $response = "\n** Your response has been posted\n\n";
+    $transaction->body_front_write($response);
     return OK;
 }
 
