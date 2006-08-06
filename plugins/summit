@@ -9,7 +9,7 @@ This plugin handles replies to basecamp emails
 
 =head1 CONFIG
 
-As a final plugin before the queuing plugin insert this line:
+Add this line before rcpt_ok and then test
 
 summit db_name $db_name db_user $db_user db_host $db_host db_pass $db_pass
 
@@ -37,15 +37,34 @@ my $VERSION = '0.01';
 sub init {
     my ( $self, $qp, %args ) = @_;
 
-	my $params_ref = Summit::DB->params(%args);
+    my $params_ref = Summit::DB->params(%args);
     $self->{dbh_connect} = $params_ref;
     $self->{mech} = WWW::Mechanize->new( cookie_jar => {} );
+}
+
+sub hook_rcpt {
+    my ( $self, $transaction, $recipient ) = @_;
+
+    my $sender = $transaction->sender->address;
+    $self->log( LOGDEBUG, "Recipient is " . $recipient->address );
+    $self->log( LOGDEBUG, "sender is $sender" );
+    my ( $basecamp_login, $basecamp_pass ) =
+      $self->_authenticate( $sender, $recipient->address, );
+
+    if ( $basecamp_login && $basecamp_pass ) {
+        $self->log( LOGDEBUG, "Summit user found" );
+        $self->register_hook( 'data_post', 'summit_handler' );
+        $self->{'basecamp_login'} = $basecamp_login;
+        $self->{'basecamp_pass'}  = $basecamp_pass;
+    }
+    $self->log( LOGDEBUG, "NOT A Summit user" );
+    return OK;
 }
 
 sub _authenticate {
     my ( $self, $sender, $recipient ) = @_;
 
-    my $dbh = DBI->connect( @{$self->{dbh_connect}})
+    my $dbh = DBI->connect( @{ $self->{dbh_connect} } )
       or die print STDERR "Could not establish db connection";
     my $sql = <<SQL;
 SELECT basecamp_login, basecamp_pass from account
@@ -56,19 +75,19 @@ SQL
     $sth->bind_param( 1, $sender );
     $sth->bind_param( 2, $recipient );
     my $rv = $sth->execute;
-    $self->log( LOGDEBUG, "authentication query, params $sender, $recipient");
-	unless ($rv) {
+    $self->log( LOGDEBUG, "authentication query, params $sender, $recipient" );
+    unless ($rv) {
         $self->log( LOGERROR, "Failed to execute $sql, err $DBI::errstr" );
         return;
     }
 
     my $ary_ref = $sth->fetchrow_arrayref;
-    $self->log( LOGDEBUG, "Query results: " . Dumper($ary_ref ));
-	
-	$dbh->rollback;
+    $self->log( LOGDEBUG, "Query results: " . Dumper($ary_ref) );
 
-    if ( $ary_ref->[0] ){
-        return ( @{$ary_ref});
+    $dbh->rollback;
+
+    if ( $ary_ref->[0] ) {
+        return ( @{$ary_ref} );
     }
     return;
 }
@@ -83,36 +102,28 @@ sub _get_body {
     return $body;
 }
 
-sub hook_data_post {
+sub summit_handler {
     my ( $self, $transaction ) = @_;
 
-	$DB::single = 1;
+    $DB::single = 1;
     my @recipients = $transaction->recipients;
-    my $recipient = $recipients[0]->address;
-    my $sender = $transaction->sender->address; 
+    my $recipient  = $recipients[0]->address;
+    my $sender     = $transaction->sender->address;
     $self->log( LOGDEBUG, "recipient is " . Dumper($recipient) );
-    my ( $basecamp_login, $basecamp_pass ) = $self->_authenticate(
-            $sender,
-            $recipient,
-    );
-    unless ($basecamp_login && $basecamp_pass) {
-
-        # return the email to the sender with a message
-        $transaction->body_write("\n*****\nPlease sign up for an account\n");
-		$self->log(LOGINFO, "Sender $sender failed to authenticate");
-        return DENY;
-    }
 
     my $body = _get_body($transaction);
-#	$self->log(LOGDEBUG, "Transaction body" . $body);
-    my ($url) = $body =~ m{(http://\w+\.(?:clientsection|projectpath)\.com/\w+)}s;
-	$self->log(LOGDEBUG, "hey I found an URL: $url");
+
+    #	$self->log(LOGDEBUG, "Transaction body" . $body);
+    my ($url) =
+      $body =~ m{(http://\w+\.(?:clientsection|projectpath)\.com/\w+)}s;
+    $self->log( LOGDEBUG, "hey I found an URL: $url" );
     my $post;
     if ($url) {    # looks like it was forwarded inline
                    # grab the comments they added
-        my @parts = split(/\n\n/, $body);
+        my @parts = split( /\n\n/, $body );
         $post = $parts[0];
-#		$self->log(LOGDEBUG, "the post is $post");
+
+        #		$self->log(LOGDEBUG, "the post is $post");
     }
     elsif ( !$url ) {
 
@@ -123,35 +134,35 @@ sub hook_data_post {
     }
 
     my $mech = $self->{mech};
+
     # Time to have some fun
     $mech->get($url);
 
-#    $self->log(LOGDEBUG, "Response from login page get: \n" . 
-#		Dumper($mech->res->content));
+    #    $self->log(LOGDEBUG, "Response from login page get: \n" .
+    #		Dumper($mech->res->content));
     $mech->submit_form(
         form_number => 1,
         fields      => {
-            user_name => $basecamp_login,
-            password  => $basecamp_pass,
+            user_name => $self->{'basecamp_login'},
+            password  => $self->{'basecamp_pass'},
         },
     );
 
     unless ( $mech->res->is_success ) {
         $self->log( LOGERROR, "Problem logging in" );
-		$transaction->body_write("Problem logging in");
-		return DENY "Could not log in";        
+        $transaction->body_write("Problem logging in");
+        return ( DENY, "Could not log in" );
     }
 
-    #$self->log( LOGDEBUG, "Page after logging in: \n" . Dumper($mech->res->content));
+#$self->log( LOGDEBUG, "Page after logging in: \n" . Dumper($mech->res->content));
     $mech->field( 'comment[body]' => $post );
     $mech->click_button( value => "Post this Comment" );
 
-
-    #$self->log( LOGDEBUG, "Page content after posting: " . Dumper($mech->res->content));
+#$self->log( LOGDEBUG, "Page content after posting: " . Dumper($mech->res->content));
     unless ( $mech->res->is_success ) {
         $self->log( LOGERROR, "Problem posting comment\n$body" );
-		$transaction->body_write("Problem posting comment");
-		return DENY "Could not post comment successfully";        
+        $transaction->body_write("Problem posting comment");
+        return ( DENY, "Could not post comment successfully" );
     }
 
     return OK;
