@@ -56,9 +56,10 @@ sub hook_rcpt {
         $self->register_hook( 'data_post', 'summit_handler' );
         $self->{'basecamp_login'} = $basecamp_login;
         $self->{'basecamp_pass'}  = $basecamp_pass;
+        return OK;
     }
     $self->log( LOGDEBUG, "NOT A Summit user" );
-    return OK;
+    return DECLINED;
 }
 
 sub _authenticate {
