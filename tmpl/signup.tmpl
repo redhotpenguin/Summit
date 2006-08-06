@@ -1,0 +1,70 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>Summit Signup</title>
+<link rel="stylesheet" href="http://summit.redhotpenguin.com/css/styles.css" type="text/css" />
+</head>
+<body>
+<div id="content">
+<form method="post" action="/cgi-bin/summit_signup.cgi" name="signup">
+<input type="hidden" name="rm" value="thanks">
+
+  <p class="content"><a href="/cgi-bin/summit_signup.cgi">
+                 <img border="0" src="/img/logo.gif"></a></p>
+  <p class="content">Thank you for your interest in the Summit email reply service.<br />  Please complete the following form to register for your 30 day trial summit account.</p>
+    [% IF any_errors %]
+    <p class="content"><font color="red">Please correct the fields highlighted in red</font></p>
+  [% END %]  
+  [% IF err_login %]
+    <p class="content"><font color="red">There was a problem with your basecamp login information</font></p>
+  [% END %]
+
+  [% IF err_dupe_user %]
+    <p class="content"><font color="red">Sorry you've already signed up with that email address and basecamp user combination.</font></p>
+  [% END %]
+    <input type="hidden" name="dupe_user" value="1">
+  [% IF err_name %]
+    <p class="content"><font color="red">
+    Account Name ( a single word to refer to this account):</font>
+    [% ELSE %]
+    <p class="content">Account Name ( a single word to refer to this account):
+    [% END %]
+    <input type="text" size="25" maxlength="50" name="name" value="[% name %]"></p>
+
+
+
+   [% IF err_email %]
+    <p class="content"><font color="red">Email:</font>
+    [% ELSE %]
+  <p class="content">Email:
+    [% END %]
+    <input type="text" size="25" maxlength="50" name="email" value="[% email %]"></p>
+
+    [% IF err_login %]
+  <p class="content"><font color="red">Basecamp Username:</font>
+    [% ELSE %]
+  <p class="content">Basecamp Username:
+  [% END %]
+    <input type="text" size="25" maxlength="50" name="login" value="[% login %]"></p>
+
+    [% IF err_login %]
+  <p class="content"><font color="red">Basecamp Password:</font>
+    [% ELSE %]
+  <p class="content">Basecamp Password:
+  [% END %]
+    <input type="text" size="25" maxlength="50" name="pass" value="[% pass %]"></p>
+
+    [% IF err_login %]
+  <p class="content"><font color="red">Basecamp Url:</font>
+    [% ELSE %]
+  <p class="content">Basecamp Url:
+  [% END %]
+    <input type="text" size="25" maxlength="50" name="url" value="[% url %]"></p>
+
+
+
+  <p class="signup_button"><input type="submit" value="Signup"></p>
+</form>
+<div>
+</html>
+
