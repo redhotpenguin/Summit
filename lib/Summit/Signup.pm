@@ -15,6 +15,7 @@ use constant DOMAIN => 'redhotpenguin.com';
 
 my $ADMIN = 'fred@redhotpenguin.com';
 my $SUPPORT_URL = 'http://summit.redhotpenguin.com/faq.html';
+my $HOST = '10.0.0.2';
 
 sub setup {
     my $self = shift;
@@ -69,7 +70,8 @@ sub _dupe_user {
     my ($email, $login) = @_;
     return 1 unless ($email && $login); # lower precedence constraint
     require Summit::DB;
-    my $db_connect_params = Summit::DB->params;
+    my $db_connect_params = Summit::DB->params( db_host => $HOST);
+#	print STDERR "DB connect params are " . Dumper($db_connect_params);
     die unless $db_connect_params;
     require DBI;
     my $dbh = DBI->connect(@{$db_connect_params});
@@ -133,7 +135,7 @@ sub thanks {
 
     require Summit::DB;
 
-    my $db_connect_params = Summit::DB->params;
+    my $db_connect_params = Summit::DB->params( db_host => $HOST);
     die unless $db_connect_params;
     require DBI;
     my $dbh = DBI->connect(@{$db_connect_params});
@@ -163,9 +165,9 @@ SQL
 
     print $mailer "I'm the signup form for summit, someone has signed up!\n";
   
+    print $mailer "\nrecipient: $recipient\n";  
     foreach my $key ( qw( name email login pass url) ) {
       print $mailer "\n$key: " . $valid_data->{$key} . "\n";
-      print $mailer "\nrecipient: $recipient\n";  
     }
     $mailer->close;
    
@@ -178,13 +180,49 @@ SQL
 Thank you for signing up for the Summit email reply service.  With this 
 service, you can forward your Basecamp emails to $recipient with a comment 
 above the forwarded message, and the comment will be posted to your basecamp 
-account located at $url.  Please make sure to end your comment with at least 
-two returns.  For more information on how to use summit, visit $SUPPORT_URL. 
-\nWe hope you enjoy this free 30 day trial.  As the end of the trial draws 
+account located at $url.
+
+We hope you enjoy this free 30 day trial.  As the end of the trial draws 
 near, we will send you a link which will allow you to purchase an account. 
 
+To reply to a basecamp email, simply forward the email to $recipient with 
+your comments at the top of the forwarded email.  For example:
+
+_________________________________________________________________________
+This is the comment I am forwarding to fred_summit\@redhotpenguin.com
+
+To terminate my comment, I will hit return or enter three times to
+separate my comment from the original message.
+
+
+
+-----Original Message-----
+From: Test Person <do-not-reply-C3212710\@prdf.clientsection.com>
+To: Fred Moyer <fred\@redhotpenguin.com>
+Subject: [SL] Re: test message
+Date: Sat, 5 Aug 2006 19:45:58 -0500
+
+A new comment has been posted. DO NOT REPLY TO THIS EMAIL.
+To post your own comment or read the original message, visit:
+http://prdf.clientsection.com/P3029497
+
+-----------------------------------------------------------------
+Company: Summit QS
+Project: QA
+-----------------------------------------------------------------
+Test Person posted this comment:
+.................................................................
+
+   We are in beta now.
+
+   --
+   DO NOT REPLY TO THIS EMAIL
+   To post a comment of your own, read the original message, or to
+   read all existing comments, visit:
+   http://prdf.clientsection.com/C3212710
 MSG
-    print $mailer $msg;
+
+	print $mailer $msg;
     $mailer->close;
 
     $self->header_type('redirect');

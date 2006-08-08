@@ -3,6 +3,27 @@
 <head>
 <title>Summit Signup</title>
 <link rel="stylesheet" href="http://summit.redhotpenguin.com/css/styles.css" type="text/css" />
+<script type="text/javascript">
+    var theForm;
+    var requestSubmitted = false;  
+
+    function disableButton(btn,form,buttonType) {
+        if (!requestSubmitted) {
+            var submitMessage = "Please Wait...  ";
+            btn.value = submitMessage;
+            theForm = form;
+            btn.disabled = true;
+            requestSubmitted = true;
+            setTimeout("submitIt()", 250);
+        } else {
+            return false;
+        }
+    }
+    function submitIt() {
+        theForm.submit();
+        return false;
+    }
+</script>
 </head>
 <body>
 <div id="content">
@@ -10,7 +31,7 @@
 <input type="hidden" name="rm" value="thanks">
 
   <p class="content"><a href="/cgi-bin/summit_signup.cgi">
-                 <img border="0" src="/img/logo.gif"></a></p>
+                 <img border="0" src="/img/summit_logo.gif"></a></p>
   <p class="content">Thank you for your interest in the Summit email reply service.<br />  Please complete the following form to register for your 30 day trial summit account.</p>
     [% IF any_errors %]
     <p class="content"><font color="red">Please correct the fields highlighted in red</font></p>
@@ -25,7 +46,7 @@
     <input type="hidden" name="dupe_user" value="1">
   [% IF err_name %]
     <p class="content"><font color="red">
-    Account Name ( a single word to refer to this account):</font>
+    Account Name (a single word to refer to this account):</font>
     [% ELSE %]
     <p class="content">Account Name ( a single word to refer to this account):
     [% END %]
@@ -63,7 +84,7 @@
 
 
 
-  <p class="signup_button"><input type="submit" value="Signup"></p>
+  <p class="signup_button"><input type="submit" value="Signup" onclick="javascript: return disableButton(this,signup,null)"></p>
 </form>
 <div>
 </html>
