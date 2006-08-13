@@ -8,5 +8,6 @@ Module::Build->new(
 	requires => {
 		'perl' => '5.8.6',
 		'Net::SMTP' => 2.29,
+		'MIME::Parser' => 5.420,
 	},
 )->create_build_script();
