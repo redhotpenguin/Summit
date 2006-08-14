@@ -1,3 +1,4 @@
+use strict;
 
 =head1 NAME
 
@@ -30,42 +31,41 @@ use lib "/home/fred/dev/summit/trunk/lib";
 use Data::Dumper;
 use DBI;
 use Summit::DB;
-use WWW::Mechanize;
+use Summit::Message;
 
 my $VERSION = '0.01';
 
 sub init {
-    my ( $self, $qp, %args ) = @_;
+    my ($self, $qp, %args) = @_;
 
     my $params_ref = Summit::DB->params(%args);
     $self->{dbh_connect} = $params_ref;
-    $self->{mech} = WWW::Mechanize->new( cookie_jar => {} );
 }
 
 sub hook_rcpt {
-    my ( $self, $transaction, $recipient ) = @_;
+    my ($self, $transaction, $recipient) = @_;
 
     my $sender = $transaction->sender->address;
-    $self->log( LOGDEBUG, "Recipient is " . $recipient->address );
-    $self->log( LOGDEBUG, "sender is $sender" );
-    my ( $basecamp_login, $basecamp_pass ) =
-      $self->_authenticate( $sender, $recipient->address, );
+    $self->log(LOGDEBUG, "Recipient is " . $recipient->address);
+    $self->log(LOGDEBUG, "sender is $sender");
+    my ($basecamp_login, $basecamp_pass) =
+      $self->_authenticate($sender, $recipient->address,);
 
-    if ( $basecamp_login && $basecamp_pass ) {
-        $self->log( LOGDEBUG, "Summit user found" );
-        $self->register_hook( 'data_post', 'summit_handler' );
+    if ($basecamp_login && $basecamp_pass) {
+        $self->log(LOGDEBUG, "Summit user found");
+        $self->register_hook('data_post', 'summit_handler');
         $self->{'basecamp_login'} = $basecamp_login;
         $self->{'basecamp_pass'}  = $basecamp_pass;
         return OK;
     }
-    $self->log( LOGDEBUG, "NOT A Summit user" );
+    $self->log(LOGINFO, "$sender is NOT A Summit user");
     return DECLINED;
 }
 
 sub _authenticate {
-    my ( $self, $sender, $recipient ) = @_;
+    my ($self, $sender, $recipient) = @_;
 
-    my $dbh = DBI->connect( @{ $self->{dbh_connect} } )
+    my $dbh = DBI->connect(@{$self->{dbh_connect}})
       or die print STDERR "Could not establish db connection";
     my $sql = <<SQL;
 SELECT basecamp_login, basecamp_pass from account
@@ -73,22 +73,22 @@ WHERE sender = ? AND recipient = ? AND active = 't'
 SQL
 
     my $sth = $dbh->prepare_cached($sql);
-    $sth->bind_param( 1, $sender );
-    $sth->bind_param( 2, $recipient );
+    $sth->bind_param(1, $sender);
+    $sth->bind_param(2, $recipient);
     my $rv = $sth->execute;
-    $self->log( LOGDEBUG, "authentication query, params $sender, $recipient" );
+    $self->log(LOGDEBUG, "authentication query, params $sender, $recipient");
     unless ($rv) {
-        $self->log( LOGERROR, "Failed to execute $sql, err $DBI::errstr" );
+        $self->log(LOGERROR, "Failed to execute $sql, err $DBI::errstr");
         return;
     }
 
     my $ary_ref = $sth->fetchrow_arrayref;
-    $self->log( LOGDEBUG, "Query results: " . Dumper($ary_ref) );
+    $self->log(LOGDEBUG, "Query results: " . Dumper($ary_ref));
 
     $dbh->rollback;
 
-    if ( $ary_ref->[0] ) {
-        return ( @{$ary_ref} );
+    if ($ary_ref->[0]) {
+        return (@{$ary_ref});
     }
     return;
 }
@@ -97,106 +97,74 @@ sub _get_body {
     my $transaction = shift;
     $transaction->body_resetpos;
     my $body;
-    while ( my $line = $transaction->body_getline ) {
+    while (my $line = $transaction->body_getline) {
         $body .= $line;
     }
     return $body;
 }
 
 sub summit_handler {
-    my ( $self, $transaction ) = @_;
+    my ($self, $transaction) = @_;
 
     $DB::single = 1;
     my @recipients = $transaction->recipients;
     my $recipient  = $recipients[0]->address;
     my $sender     = $transaction->sender->address;
-    $self->log( LOGDEBUG, "recipient is " . Dumper($recipient) );
+    $self->log(LOGDEBUG, "recipient is " . Dumper($recipient));
 
     my $body = _get_body($transaction);
 
     #	$self->log(LOGDEBUG, "Transaction body" . $body);
-    my ($url) =
-      $body =~ m{(http://\w+\.(?:clientsection|projectpath)\.com/\w+)}s;
-    $self->log( LOGDEBUG, "hey I found an URL: $url" );
-    my $post;
-    if ($url) {    # looks like it was forwarded inline
-                   # grab the comments they added
-        my @parts = split( /\n\n/, $body );
-        $post = $parts[0];
+    my $msg =
+      Summit::Message->new(
+                           {
+                            header => $transaction->headers->as_string,
+                            body   => $body
+                           }
+                          );
+    $msg->basecamp_login($self->{_basecamp_login});
+    $msg->basecamp_pass($self->{_basecamp_pass});
 
-        unless ($post =~ m/\S/g) { # better have found something
-            $self->log( LOGERROR, "Hmm no post message found" );
-            my $msg = <<MSG;
+    return &$self->_no_url_found($transaction)     if !$msg->url;
+    return &$self->_no_comment_found($transaction) if !$msg->comment;
+    return &$self->_comment_error($transaction)    if !$msg->post_to_basecamp;
+    return &$self->_send_receipt($transaction);
+}
+
+sub _no_comment_found {
+    my ($self, $transaction) = @_;
+    $self->log(LOGERROR, "Hmm no post message found");
+    my $msg = <<MSG;
 \nWe couldn't find your comment.  Please make sure that it had at least two returns separating it from the original message\n\n
 MSG
-            $transaction->body_front_write($msg);
-            $transaction->recipients( $transaction->sender );
-            return OK;
-        }
+    $transaction->body_front_write($msg);
+    $transaction->recipients($transaction->sender);
+    return OK;
+}
 
-        #		$self->log(LOGDEBUG, "the post is $post");
-    }
-    elsif ( !$url ) {
-
-        # maybe it's forwarded as an attachment?
-        $self->log( LOGERROR, "Hmm no url found" );
-        my $msg = "\nSorry we couldn't find a basecamp url in your message\n\n";
-        $transaction->body_front_write($msg);
-        $transaction->recipients( $transaction->sender );
-        return OK;
-    }
-
-    # leave our mark
-    $post .= "\n\n- comment posted via summit (http://summit.redhotpenguin.com)";
-    
-    my $mech = $self->{mech};
-
-    # Time to have some fun
-    $mech->get($url);
-    unless ($mech->success) {
-        # couldn't get the page
-        $self->log( LOGERROR, "Problem grabbing url $url" );
-        my $msg = "\nProblem grabbing url $url\n"; 
-        $transaction->body_front_write($msg);
-        $transaction->recipients( $transaction->sender );
-        return OK;
-    } 
-
-    #    $self->log(LOGDEBUG, "Response from login page get: \n" .
-    #		Dumper($mech->res->content));
-    $mech->submit_form(
-        form_number => 1,
-        fields      => {
-            user_name => $self->{'basecamp_login'},
-            password  => $self->{'basecamp_pass'},
-        },
-    );
-
-    unless ( $mech->res->is_success ) {
-        $self->log( LOGERROR, "Problem logging in" );
-        my $msg = "\nProblem logging in, username " . 
-            $self->{'basecamp_login'} .
-            ", pass " . $self->{basecamp_pass} . "\n\n";
-        $transaction->body_front_write($msg);
-        $transaction->recipients( $transaction->sender );
-        return OK;
-    }
-
-#$self->log( LOGDEBUG, "Page after logging in: \n" . Dumper($mech->res->content));
-    $mech->field( 'comment[body]' => $post );
-    $mech->click_button( value => "Post this Comment" );
-
-#$self->log( LOGDEBUG, "Page content after posting: " . Dumper($mech->res->content));
-    unless ( $mech->res->is_success ) {
-        $self->log( LOGERROR, "Problem posting comment\n$body" );
-        $transaction->body_front_write("\nProblem posting comment\n");
-        $transaction->recipients( $transaction->sender );
-        return OK;
-    }
-    
-    $transaction->recipients( $transaction->sender );
+sub _send_receipt {
+    my ($self, $transaction) = @_;
+    $transaction->recipients($transaction->sender);
     my $response = "\n** Your response has been posted\n\n";
     $transaction->body_front_write($response);
+    return OK;
+}
+
+sub _no_url_found {
+    my ($self, $transaction) = @_;
+
+    $self->log(LOGERROR, "Hmm no url found");
+    my $msg = "\nSorry we couldn't find a basecamp url in your message\n\n";
+    $transaction->body_front_write($msg);
+    $transaction->recipients($transaction->sender);
+    return OK;
+}
+
+sub _comment_error {
+    my ($self, $transaction) = @_;
+    $self->log(LOGERROR, $self->_comment_err_log);
+    $transaction->body_front_write($self->_comment_err_msg);
+    $transaction->recipients($transaction->sender);
     return OK;
 }
 
