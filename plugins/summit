@@ -31,7 +31,6 @@ use lib "/home/fred/dev/summit/trunk/lib";
 use Data::Dumper;
 use DBI;
 use Summit::DB;
-use Summit::Message;
 
 my $VERSION = '0.01';
 
@@ -115,6 +114,7 @@ sub summit_handler {
     my $body = _get_body($transaction);
 
     #	$self->log(LOGDEBUG, "Transaction body" . $body);
+    require Summit::Message;
     my $msg =
       Summit::Message->new(
                            {
