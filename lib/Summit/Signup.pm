@@ -14,7 +14,7 @@ use Data::Dumper qw( Dumper );
 use constant DOMAIN => 'redhotpenguin.com';
 
 my $ADMIN = 'fred@redhotpenguin.com';
-my $SUPPORT_URL = 'http://summit.redhotpenguin.com/faq.html';
+my $SUPPORT_URL = 'http://sherpa.redhotpenguin.com/learn.html';
 my $HOST = '10.0.0.2';
 
 sub setup {
@@ -26,7 +26,7 @@ sub setup {
 
 sub cgiapp_init {
     my $self = shift;
-    $self->tt_include_path('/var/www/localhost/tt/summit');
+    $self->tt_include_path('/var/www/sherpa.redhotpenguin.com/tmpl');
 }
 
 sub signup {
@@ -147,7 +147,7 @@ VALUES ( ?, ?,
     ?, ?, 't', ?);
 SQL
 
-    my $recipient = join('@', ($valid_data->{name} . '_summit'), DOMAIN);
+    my $recipient = join('@', ($valid_data->{name} . '_sherpa'), DOMAIN);
     my $sth = $dbh->prepare($sql);
     $sth->bind_param(1, $valid_data->{login});
     $sth->bind_param(2, $valid_data->{pass});
@@ -160,10 +160,10 @@ SQL
     my $mailer = Mail::Mailer->new('qmail');
     $mailer->open({
             'To' => $ADMIN,
-            'From' => "Summit Signup <summit_signup\@redhotpenguin.com>",
+            'From' => "Sherpa Signup <sherpa_signup\@redhotpenguin.com>",
             'Subject' => $valid_data->{email} . " has signed up!" });
 
-    print $mailer "I'm the signup form for summit, someone has signed up!\n";
+    print $mailer "I'm the signup form for sherpa, someone has signed up!\n";
   
     print $mailer "\nrecipient: $recipient\n";  
     foreach my $key ( qw( name email login pass url) ) {
@@ -174,10 +174,10 @@ SQL
     my $url = $valid_data->{url};
     $mailer->open({
             'To' => $valid_data->{email},
-            'From' => "Summit Signup <summit_signup\@redhotpenguin.com>",
-            'Subject' => 'Your Summit account is active'});
+            'From' => "Sherpa Signup <sherpa_signup\@redhotpenguin.com>",
+            'Subject' => 'Your Sherpa account is active'});
     my $msg = <<MSG;
-Thank you for signing up for the Summit email reply service.  With this 
+Thank you for signing up for the Sherpa email reply service.  With this 
 service, you can forward your Basecamp emails to $recipient with a comment 
 above the forwarded message, and the comment will be posted to your basecamp 
 account located at $url.
@@ -189,7 +189,7 @@ To reply to a basecamp email, simply forward the email to $recipient with
 your comments at the top of the forwarded email.  For example:
 
 _________________________________________________________________________
-This is the comment I am forwarding to fred_summit\@redhotpenguin.com
+This is the comment I am forwarding to fred_sherpa\@redhotpenguin.com
 
 To terminate my comment, I will hit return or enter three times to
 separate my comment from the original message.
@@ -207,7 +207,7 @@ To post your own comment or read the original message, visit:
 http://prdf.clientsection.com/P3029497
 
 -----------------------------------------------------------------
-Company: Summit QS
+Company: Sherpa QS
 Project: QA
 -----------------------------------------------------------------
 Test Person posted this comment:
@@ -226,7 +226,7 @@ MSG
     $mailer->close;
 
     $self->header_type('redirect');
-    $self->header_props(-url => 'http://summit.redhotpenguin.com/signup/thanks.html');
+    $self->header_props(-url => 'http://sherpa.redhotpenguin.com/signup/thanks.html');
 }
 
 1;

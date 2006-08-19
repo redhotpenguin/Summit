@@ -32,6 +32,12 @@ use Data::Dumper;
 use DBI;
 use Summit::DB;
 
+use constant SHERPA_OK => 200;
+use constant SHERPA_COMMENT_ERROR => 500;
+use constant SHERPA_NO_URL_FOUND => 404;
+use constant SHERPA_NO_COMMENT_FOUND => 406;
+
+
 my $VERSION = '0.01';
 
 sub init {
@@ -47,7 +53,7 @@ sub hook_rcpt {
     my $sender = $transaction->sender->address;
     $self->log(LOGDEBUG, "Recipient is " . $recipient->address);
     $self->log(LOGDEBUG, "sender is $sender");
-    my ($basecamp_login, $basecamp_pass) =
+    my ($basecamp_login, $basecamp_pass, $account_id) =
       $self->_authenticate($sender, $recipient->address,);
 
     if ($basecamp_login && $basecamp_pass) {
@@ -55,6 +61,7 @@ sub hook_rcpt {
         $self->register_hook('data_post', 'summit_handler');
         $self->{'basecamp_login'} = $basecamp_login;
         $self->{'basecamp_pass'}  = $basecamp_pass;
+		$self->{'account_id'}	  = $account_id;
         return OK;
     }
     $self->log(LOGINFO, "$sender is NOT A Summit user");
@@ -67,7 +74,7 @@ sub _authenticate {
     my $dbh = DBI->connect(@{$self->{dbh_connect}})
       or die print STDERR "Could not establish db connection";
     my $sql = <<SQL;
-SELECT basecamp_login, basecamp_pass from account
+SELECT basecamp_login, basecamp_pass, account_id from account
 WHERE sender = ? AND recipient = ? AND active = 't'
 SQL
 
@@ -86,6 +93,7 @@ SQL
 
     $dbh->rollback;
 
+	$self->{dbh} = $dbh;
     if ($ary_ref->[0]) {
         return (@{$ary_ref});
     }
@@ -131,8 +139,26 @@ sub summit_handler {
     return &$self->_send_receipt($transaction);
 }
 
+sub _log_transaction {
+	my ($self, $code) = @_;
+
+    my $dbh = $self->{dbh} || (DBI->connect(@{$self->{dbh_connect}})
+      or die print STDERR "Could not establish db connection");
+
+    my $sql = <<SQL;
+INSERT INTO TRANSACTION (account_id, code) values (?, ?)
+SQL
+	my $sth = $dbh->prepare($sql);
+    $sth->bind_param(1, $self->{'account_id'});
+    $sth->bind_param(2, $code);
+    my $rv = $sth->execute;
+	$dbh->commit;
+	defined $rv ? return 1 : return;
+}
+
 sub _no_comment_found {
     my ($self, $transaction) = @_;
+	$self->_log_transaction(SHERPA_NO_COMMENT_FOUND);    
     $self->log(LOGERROR, "Hmm no post message found");
     my $msg = <<MSG;
 \nWe couldn't find your comment.  Please make sure that it had at least two returns separating it from the original message\n\n
@@ -144,17 +170,20 @@ MSG
 
 sub _send_receipt {
     my ($self, $transaction) = @_;
-    $transaction->recipients($transaction->sender);
-    my $response = "\n** Your response has been posted\n\n";
+
+	$self->_log_transaction(SHERPA_OK);    
+	$transaction->recipients($transaction->sender);
+    my $response = "\n** Your response has been posted\n";
     $transaction->body_front_write($response);
     return OK;
 }
 
 sub _no_url_found {
     my ($self, $transaction) = @_;
+	$self->_log_transaction(SHERPA_NO_URL_FOUND);    
 
     $self->log(LOGERROR, "Hmm no url found");
-    my $msg = "\nSorry we couldn't find a basecamp url in your message\n\n";
+    my $msg = "\nSorry we couldn't find a basecamp url in your message\n";
     $transaction->body_front_write($msg);
     $transaction->recipients($transaction->sender);
     return OK;
@@ -162,6 +191,7 @@ sub _no_url_found {
 
 sub _comment_error {
     my ($self, $transaction) = @_;
+	$self->_log_transaction(SHERPA_COMMENT_ERROR);    
     $self->log(LOGERROR, $self->_comment_err_log);
     $transaction->body_front_write($self->_comment_err_msg);
     $transaction->recipients($transaction->sender);
