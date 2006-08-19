@@ -4,10 +4,137 @@ body {
 	
 }
 
+#top {
+	position: absolute;
+	left: 0px;
+	width: 920px;
+	top: 0px;
+	height: 185px;
+	padding: 0px;
+}
+
+.sherpa_logo {
+	position: absolute;
+	top: 31px;
+	width: 400px;
+	border: 0px;
+	margin: 0px;
+	/*border: 2px dashed;*/
+}
+
+#whitebevel {
+	position: relative;
+	top: 20px;
+	left: 0px;
+}
+img.signup_bevel {
+	position: absolute;
+	top: 700px;
+}
+p.screen {
+	position: relative;
+	top: 0px;
+	font-family: helvetica;
+	font-size: 16px;
+	font-weight: bold;
+	color: #0066CC;
+	text-align: center;
+	margin: 0px;
+	padding: 0px;
+}
+p.pda {
+	position: relative;
+	top: 0px;
+	font-family: helvetica;
+	font-size: 16px;
+	font-weight: bold;
+	color: #0066CC;
+	text-align: center;
+}
+
+#pda {
+	position: relative;
+	top: 10px;
+	left: 5px;
+	width: 210px;
+	z-index: 1;
+}
+
+#arrow {
+	position: absolute;
+	top: 100px;
+	left: 190px;
+	z-index: 0;
+}
+
+p.underarrow_orange {
+	width: 210px;
+	position: absolute;
+	color: #FF6600;
+	text-align: right;
+	left: 0px;
+	top: 185px;
+	font-family: helvetica;
+	font-size: 12px;
+	text-decoration: underline;
+	font-weight: bold;
+}
+
+p.underarrow_blue {
+	width: 210px;
+	position: absolute;
+	left: 0px;
+	top: 201px;
+	color: #0066CC;
+	font-weight: bold;
+	text-align: right;
+	font-family: helvetica;
+	font-size: 12px;
+}
+
+p.arrow {
+	position: absolute;
+	left: 15px;
+	top: 80px;
+	font-family: helvetica;
+	font-size: 16px;
+	font-weight: bold;
+	color: #0066CC;
+}
+
+#screen {
+	position: absolute;
+	left: 510px;
+	top: 30px;
+	margin: 0px;
+	padding: 0px;
+}
+
+
+#main {
+	position: absolute;
+	top: 185px;
+	/*border: 1px solid;*/
+}
+
+#right_top {
+	position: absolute;
+	width: 420px;
+	left: 500px;
+	top: 7px;
+	margin: 0px;
+	padding: 0px;
+	/* border: 1px dashed; */
+}
+
+#buttons {
+	width: 500px;
+}
+
 #content {
     position: absolute;
-    left: 25%;
-    width: 500px;
+    left: 15%;
+    width: 600px;
 
 }
 p.signup_button {
@@ -15,13 +142,21 @@ p.signup_button {
 }
 
 p.thanks {
-    v-align: top;
+	position: relative;
+	left: 20%;
+	top: 50px;
+	width: 500px;
+    vertical-align: top;
     text-align: center;
     font-family: Helvetica;
+	color: #0066CC;
+	font-weight: bold;
 }
 p.content, tr.checkbox, p.checkbox {
     text-align: left;
     font-family: Helvetica;
+	color: #0066CC;
+	font-weight: bold;
 }
 #checkbox {
     text-align: center;
