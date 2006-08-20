@@ -53,8 +53,9 @@
 <div id="content">
 <form method="post" action="/cgi-bin/sherpa/signup.cgi" name="signup">
 <input type="hidden" name="rm" value="thanks">
-
-  <p class="content">Thank you for your interest in the Sherpa email reply service.<br />  Please complete the following form to register for your free trial Sherpa account.</p>
+<p>&nbsp;</p>
+<p class="content" style="font-size: 24px; color: #003365;">Signup</p>
+  <p class="content" style="font-weight: normal;">Thank you for your interest in sherpa.  Please complete the following form to register for your free 30 day trial sherpa account.  Once you signup, you will receive an email and be ready to go immediately.</p>
     [% IF any_errors %]
     <p class="content"><font color="red">Please correct the fields highlighted in red</font></p>
   [% END %]  
@@ -70,49 +71,59 @@
     <p class="content"><font color="red">Sorry you've already signed up with that email address and basecamp user combination.</font></p>
   [% END %]
     <input type="hidden" name="dupe_user" value="1">
+
+<p class="content">
+	<table>
+	<tr>
+<td class="content_form">
   [% IF err_name %]
-    <p class="content"><font color="red">
-    [% ELSE %]
-    <p class="content">
+    <font color="red">
     [% END %]
-    Sherpa account name (choose a 10 letter word, e.g. sherpa)</font>
-    <br />
-    <input type="text" size="10" maxlength="10" name="name" value="[% name %]"></p>
+	Name this account:&nbsp;</td>
+    <td><input type="text" size="10" maxlength="10" name="name" value="[% name %]"></td>
+</tr><tr>
+<td>&nbsp;</td><td class="content_light">(choose any word, e.g. sherpa)</td>
+</tr>
 
+<td class="content_form">
    [% IF err_email %]
-    <p class="content"><font color="red">
-    [% ELSE %]
-  <p class="content">
+    <font color="red">
     [% END %]
-    Email address from which you will be forwarding Basecamp replies</font>
-    <br /><input type="text" size="25" maxlength="50" name="email" value="[% email %]"></p>
-
+Email address:&nbsp;</td>
+<td><input type="text" size="25" maxlength="50" name="email" value="[% email %]"></td>
+</tr><tr>
+<td>&nbsp;</td><td class="content_light">(Address from which you will be forwarding emails to sherpa)</td>
+</tr>
+<tr>
+<td class="content_form">
     [% IF err_login %]
-  <p class="content"><font color="red">Basecamp Username</font>
-    [% ELSE %]
-  <p class="content">Basecamp Username
+  <font color="red">
   [% END %]
-    <br />
-    <input type="text" size="10" maxlength="25" name="login" value="[% login %]"></p>
-
+Basecamp Username:&nbsp;</td>
+<td><input type="text" size="10" maxlength="25" name="login" value="[% login %]"></td>
+</tr><tr>
+<td>&nbsp;</td><td class="content_light">(Your Basecamp login)</td>
+</tr>
+<tr>
+<td class="content_form">
     [% IF err_login %]
-  <p class="content"><font color="red">Basecamp Password *</font>
-    [% ELSE %]
-  <p class="content">Basecamp Password *
+  <font color="red">
   [% END %]
-    <br />
-    <input type="password" size="10" maxlength="25" name="pass" value="[% pass %]"></p>
-
+* Basecamp Password:&nbsp;</td>
+<td><input type="password" size="10" maxlength="25" name="pass" value="[% pass %]"></td>
+</tr><tr>
+<td>&nbsp;</td><td class="content_light">(Your Basecamp password)</td>
+</tr><tr>
+<td class="content_form">
     [% IF err_url %]
-  <p class="content"><font color="red">
-    [% ELSE %]
-  <p class="content">
+	<font color="red">
   [% END %]
-  Basecamp URL e.g. http://yoursite.clientsection.com</font>
-    <br />
-    <input type="text" size="25" maxlength="50" name="url" value="[% url %]"></p>
-
-  <p style="text-align: left;" class="signup_button"><input type="submit" value="Signup" onclick="javascript: return disableButton(this,signup,null)"></p>
+  Basecamp URL:&nbsp;</td>
+	<td><input type="text" size="25" maxlength="50" name="url" value="[% url %]"></td>
+	<td>&nbsp;</td></tr><td>
+<td class="content_light">(e.g. http://yoursite.clientsection.com)</td>
+</tr></table>
+  <p style="text-align: center;" class="signup_button"><input type="submit" value="Signup" onclick="javascript: return disableButton(this,signup,null)"></p>
 </form>
 <p class="content">* Your password is needed to post your comments to Basecamp.  It is stored encrypted in our database.  We take security very seriously.</p>
 

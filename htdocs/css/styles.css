@@ -29,7 +29,7 @@ body {
 }
 img.signup_bevel {
 	position: absolute;
-	top: 700px;
+	top: 800px;
 }
 p.screen {
 	position: relative;
@@ -145,18 +145,32 @@ p.thanks {
 	position: relative;
 	left: 20%;
 	top: 50px;
-	width: 500px;
+	width: 250px;
+	text-align: center;
     vertical-align: top;
     text-align: center;
     font-family: Helvetica;
 	color: #0066CC;
 	font-weight: bold;
 }
-p.content, tr.checkbox, p.checkbox {
-    text-align: left;
+
+td.content, p.content, tr.checkbox, p.checkbox {
+    text-align: center;
     font-family: Helvetica;
 	color: #0066CC;
-	font-weight: bold;
+}
+td.content_form {
+    text-align: right;
+    font-family: Helvetica;
+	color: #0066CC;
+}
+	
+td.content_light {
+    text-align: left;
+    font-family: Helvetica;
+	color: #999999;
+	font-size: smaller;
+	/*	font-weight: bold; */
 }
 #checkbox {
     text-align: center;
