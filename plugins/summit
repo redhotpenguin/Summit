@@ -172,7 +172,7 @@ sub send_receipt {
     my ($self, $transaction) = @_;
 	$self->_log_transaction(SHERPA_OK);    
     $transaction->recipients($transaction->sender);
-    my $response = "\n** Your response has been posted\n\n";
+    my $response = "\n** Your response has been posted\n";
     $transaction->body_front_write($response);
     return OK;
 }

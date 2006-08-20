@@ -187,7 +187,7 @@ sub post_to_basecamp {
     my $comment = $self->comment;
     if ($self->account_type == ACCOUNT_TRIAL) {
         $comment .=
-          "\n- comment posted via summit (http://summit.redhotpenguin.com)";
+          "\n- comment posted via Sherpa (http://sherpa.redhotpenguin.com)";
     }
 
     my $mech = WWW::Mechanize->new(cookie_jar => {});
