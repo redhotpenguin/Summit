@@ -53,7 +53,7 @@ sub hook_rcpt {
     my $sender = $transaction->sender->address;
     $self->log(LOGDEBUG, "Recipient is " . $recipient->address);
     $self->log(LOGDEBUG, "sender is $sender");
-    my ($basecamp_login, $basecamp_pass) =
+    my ($basecamp_login, $basecamp_pass, $account_id) =
       $self->_authenticate($sender, $recipient->address,);
 
     if ($basecamp_login && $basecamp_pass) {
@@ -61,6 +61,7 @@ sub hook_rcpt {
         $self->register_hook('data_post', 'summit_handler');
         $self->{'basecamp_login'} = $basecamp_login;
         $self->{'basecamp_pass'}  = $basecamp_pass;
+		$self->{'account_id'}     = $account_id;
         return OK;
     }
     $self->log(LOGINFO, "$sender is NOT A Summit user");
@@ -73,7 +74,7 @@ sub _authenticate {
     my $dbh = DBI->connect(@{$self->{dbh_connect}})
       or die print STDERR "Could not establish db connection";
     my $sql = <<SQL;
-SELECT basecamp_login, basecamp_pass from account
+SELECT basecamp_login, basecamp_pass, account_id from account
 WHERE sender = ? AND recipient = ? AND active = 't'
 SQL
 
