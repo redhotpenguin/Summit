@@ -215,15 +215,24 @@ sub post_to_basecamp {
 
     #    $self->log(LOGDEBUG, "Response from login page get: \n" .
     #		Dumper($mech->res->content));
-    $mech->submit_form(
+    eval { $mech->submit_form(
                        form_number => 1,
                        fields      => {
                                   user_name => $self->basecamp_login,
                                   password  => $self->basecamp_pass,
                                  },
-                      );
-
-    if ($mech->res->content =~ m/is invalid/) {
+                      ); };
+	if ($@ or !$mech->success) {
+        $self->_comment_err_log(  "no mech response for login url "
+                                . $self->url
+                                . ", login "
+                                . $self->basecamp_login);
+        my $msg = "\nSorry we couldn't log in to " . $self->url . "\n";
+		$msg .= "It looks like there's a problem with the website currently.\n";
+		$msg .= "Please try your message again later.\n";
+        $self->_comment_err_msg($msg);
+        return;
+    } elsif ($mech->res->content =~ m/is invalid/) {
         $self->_comment_err_log(  "Invalid username or password, url "
                                 . $self->url
                                 . ", login "
@@ -236,16 +245,7 @@ sub post_to_basecamp {
         $self->_comment_err_msg($msg);
         return;
     }
-    elsif (!$mech->success) {
-        $self->_comment_err_log(  "no mech response for login url "
-                                . $self->url
-                                . ", login "
-                                . $self->basecamp_login);
-        my $msg = "\nSorry we couldn't log in to " . $self->url . "\n";
-        $self->_comment_err_msg($msg);
-        return;
-    }
-
+	
 #$self->log( LOGDEBUG, "Page after logging in: \n" . Dumper($mech->res->content));
     $mech->field('comment[body]' => $comment);
     $mech->click_button(value => "Post this Comment");
