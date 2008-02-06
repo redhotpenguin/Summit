@@ -111,6 +111,8 @@ Basecamp Username:&nbsp;</td>
 </tr><tr>
 <td>&nbsp;</td><td class="content_light">(Your Basecamp login)</td>
 </tr>
+
+<!-- basecamp password -->
 <tr>
 <td class="content_form">
     [% IF err_login %]
@@ -121,6 +123,20 @@ Basecamp Username:&nbsp;</td>
 </tr><tr>
 <td>&nbsp;</td><td class="content_light">(Your Basecamp password)</td>
 </tr><tr>
+
+<tr>
+<td class="content_form">
+    [% IF err_login %]
+  <font color="red">
+  [% END %]
+Retype Password:&nbsp;</td>
+<td><input type="password" size="10" maxlength="25" name="retype" value="[% retype %]"></td>
+</tr><tr>
+<td>&nbsp;</td><td class="content_light">(Please retype your password)</td>
+</tr><tr>
+
+<!-- password end -->
+
 <td class="content_form">
     [% IF err_url %]
 	<font color="red">

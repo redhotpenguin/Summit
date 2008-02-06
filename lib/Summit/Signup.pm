@@ -9,13 +9,17 @@ use CGI::Application::Plugin::TT;
 use Mail::Mailer;
 use Data::FormValidator;
 use WWW::Mechanize;
-use Data::Dumper qw( Dumper );
 use Summit::DB;
 use DBI;
 
+use constant DEBUG => 1;
+if (DEBUG) {
+    require Data::Dumper;
+}
+
 my $ADMIN           = 'info@redhotpenguin.com';
+my $FROM = "Sherpa Signup <sherpa_signup\@sherpamail.com>",
 my $SUPPORT_URL     = 'http://www.sherpamail.com.com/support.html';
-my $HOST            = '127.0.0.1';
 my $TT_INCLUDE_PATH = '/var/www/sherpamail.com/tmpl';
 my $DOMAIN          = 'sherpamail.com';
 my $PHONE           = '415.720.2103';
@@ -90,11 +94,18 @@ sub _basecamp_login {
     return 1;
 }
 
+sub _passwd {
+    my $self = shift;
+    my ( $pass, $retype ) = @_;
+    return 1 if ( $pass eq $retype );
+    return;
+}
+
 sub _dupe_user {
     my $self = shift;
     my ( $email, $login ) = @_;
     return 1 unless ( $email && $login );    # lower precedence constraint
-    my $db_connect_params = Summit::DB->params( db_host => $HOST );
+    my $db_connect_params = Summit::DB->params( );
 
     #	print STDERR "DB connect params are " . Dumper($db_connect_params);
     die unless $db_connect_params;
@@ -121,12 +132,8 @@ sub thanks {
     my $self  = shift;
     my $valid = {
         required => [
-            qw( email
-              login
-              pass
-              url
-              name
-              dupe_user
+            qw( email login  pass
+              retype url    name              dupe_user
               )
         ],
         constraints => {
@@ -134,6 +141,7 @@ sub thanks {
                 name              => 'basecamp_url',
                 params            => [qw( url)],
                 constraint_method => \&_check_url,
+
             },
             login => {
                 name              => 'basecamp_login',
@@ -145,8 +153,13 @@ sub thanks {
                 params            => [qw(email login)],
                 constraint_method => \&_dupe_user,
             },
-            email => 'email',
-            name  => qr/^\w+$/,
+            pass => {
+                name              => 'password_check',
+                params            => [qw(pass retype)],
+                constraint_method => \&_passwd,
+              }
+              email => 'email',
+            name    => qr/^\w+$/,
         },
         msgs => {
             prefix     => 'err_',
@@ -162,7 +175,7 @@ sub thanks {
 
     my $valid_data = $results->valid();
 
-    my $db_connect_params = Summit::DB->params( db_host => $HOST );
+    my $db_connect_params = Summit::DB->params( );
     die unless $db_connect_params;
     my $dbh = DBI->connect( @{$db_connect_params} );
 
@@ -188,7 +201,7 @@ SQL
     $mailer->open(
         {
             'To'      => $ADMIN,
-            'From'    => "Sherpa Signup <sherpa_signup\@sherpamail.com>",
+            'From'    => $FROM,
             'Subject' => $valid_data->{email} . " has signed up!"
         }
     );
