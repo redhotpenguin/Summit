@@ -174,7 +174,8 @@ sub send_receipt {
     $transaction->recipients($transaction->sender);
     my $response = "\n** Your response has been posted\n";
     $transaction->body_front_write($response);
-    return OK;
+	$self->log(LOGERROR, "body is \n" . $self->body_as_string . "\n");    
+return OK;
 }
 
 sub no_url_found {

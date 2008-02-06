@@ -60,19 +60,6 @@
     <p class="content"><img src="http://www.silverliningnetworks.com/sherpa/error_icon.gif">&nbsp;&nbsp;<font color="red">Please correct the fields highlighted in red</font>&nbsp;</p>
     <ul>
 [% END %]  
-  [% IF err_login %]
-    <p class="content"><font color="red"><li>There was a problem with your Basecamp login information</li></font></p>
-  [% END %]
-  [% IF err_url %]
-    <p class="content"><font color="red"><li>There was a problem with your Basecamp URL</li></font></p>
-  [% END %]
-
-  [% IF err_email %]
-    <p class="content"><font color="red"><li>Please check your email address</li></font></p>
-  [% END %]
-  [% IF err_dupe_user %]
-    <p class="content"><font color="red"><li>Sorry you've already signed up with that email address and basecamp user combination.</li></font></p>
-  [% END %]
     [% IF any_errors %]
     </ul>
     [% END %]
