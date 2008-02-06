@@ -8,14 +8,20 @@ use CGI::Application::Plugin::ValidateRM qw( check_rm);
 use CGI::Application::Plugin::TT;
 use Mail::Mailer;
 use Data::FormValidator;
-
+use WWW::Mechanize;
 use Data::Dumper qw( Dumper );
+use Summit::DB;
+use DBI;
 
-use constant DOMAIN => 'redhotpenguin.com';
+my $ADMIN = 'info@redhotpenguin.com';
+my $SUPPORT_URL = 'http://www.sherpamail.com.com/support.html';
+my $HOST = '127.0.0.1';
+my $TT_INCLUDE_PATH='/var/www/sherpamail.com/tmpl';
+my $DOMAIN = 'sherpamail.com';
+my $PHONE = '415.720.2103';
 
-my $ADMIN = 'fred@redhotpenguin.com';
-my $SUPPORT_URL = 'http://sherpa.redhotpenguin.com/learn.html';
-my $HOST = '10.0.0.2';
+my %args = ( agent        =>
+    'Mozilla/5.0 (Macintosh; U; PPC Mac OS X Mach-O; en-US; rv:1.8.0.2) Gecko/20060308 Firefox/1.5.0.2' );
 
 sub setup {
     my $self = shift;
@@ -26,7 +32,7 @@ sub setup {
 
 sub cgiapp_init {
     my $self = shift;
-    $self->tt_include_path('/var/www/sherpa.redhotpenguin.com/tmpl');
+    $self->tt_include_path($TT_INCLUDE_PATH);
 }
 
 sub signup {
@@ -35,15 +41,35 @@ sub signup {
     return $output;
 }
 
+sub _check_url {
+    my $self = shift;
+	my $url = shift;
+	unless ($url =~ m/https?\:\/\//) {
+	    $url = 'http://' . $url;
+	}
+    $url =~ s/\/?$//g;
+    $url .= '/clients';
+    my $mech = $self->{mech} || WWW::Mechanize->new(%args);
+    $mech->get($url);
+    return unless $mech->success;
+    return unless (
+        $mech->res->content =~ m/username/i && 
+        $mech->res->content =~ m/password/i &&
+        $mech->res->title =~ m/login$/i
+    );
+	return $url; 
+}
+
 sub _basecamp_login {
     my $self = shift;
     my ($login, $pass, $url) = @_;
     return unless ($login && $pass && $url);
-    require WWW::Mechanize;
-    my $mech = $self->{mech} || WWW::Mechanize->new;
-    unless ($url =~ m/http\:\/\//) {
-        $url = 'http://' . $url;
-    }
+    my $mech = $self->{mech} || WWW::Mechanize->new(%args);
+	unless ($url =~ m/https?\:\/\//) {
+			$url = 'http://' . $url;
+	}
+    $url =~ s/\/?$//g;
+    $url .= '/clients';
     $mech->get($url);
     $self->{mech} = $mech;
     return unless $mech->success;
@@ -69,11 +95,9 @@ sub _dupe_user {
     my $self = shift;
     my ($email, $login) = @_;
     return 1 unless ($email && $login); # lower precedence constraint
-    require Summit::DB;
     my $db_connect_params = Summit::DB->params( db_host => $HOST);
 #	print STDERR "DB connect params are " . Dumper($db_connect_params);
     die unless $db_connect_params;
-    require DBI;
     my $dbh = DBI->connect(@{$db_connect_params});
 
     my $sql = <<SQL;
@@ -105,6 +129,11 @@ sub thanks {
                 dupe_user
             ) ],
         constraints => {
+            url => {
+                name => 'basecamp_url',
+                params => [qw( url)],
+                constraint_method => \&_check_url,
+			},
             login => {
                 name => 'basecamp_login',
                 params => [qw(login pass url)],
@@ -133,11 +162,8 @@ sub thanks {
 
     my $valid_data = $results->valid();
 
-    require Summit::DB;
-
     my $db_connect_params = Summit::DB->params( db_host => $HOST);
     die unless $db_connect_params;
-    require DBI;
     my $dbh = DBI->connect(@{$db_connect_params});
 
     my $sql = <<SQL;
@@ -147,7 +173,7 @@ VALUES ( ?, ?,
     ?, ?, 't', ?);
 SQL
 
-    my $recipient = join('@', ($valid_data->{name} . '_sherpa'), DOMAIN);
+    my $recipient = join('@', (lc($valid_data->{name}) . '.sherpa'), $DOMAIN);
     my $sth = $dbh->prepare($sql);
     $sth->bind_param(1, $valid_data->{login});
     $sth->bind_param(2, $valid_data->{pass});
@@ -160,73 +186,34 @@ SQL
     my $mailer = Mail::Mailer->new('qmail');
     $mailer->open({
             'To' => $ADMIN,
-            'From' => "Sherpa Signup <sherpa_signup\@redhotpenguin.com>",
+            'From' => "Sherpa Signup <sherpa_signup\@sherpamail.com>",
             'Subject' => $valid_data->{email} . " has signed up!" });
 
-    print $mailer "I'm the signup form for sherpa, someone has signed up!\n";
+    print $mailer "I'm the signup form for Sherpa, someone has signed up!\n";
   
     print $mailer "\nrecipient: $recipient\n";  
-    foreach my $key ( qw( name email login pass url) ) {
+    foreach my $key ( qw( name email login url) ) {
       print $mailer "\n$key: " . $valid_data->{$key} . "\n";
     }
     $mailer->close;
-   
-    my $url = $valid_data->{url};
+
     $mailer->open({
             'To' => $valid_data->{email},
-            'From' => "Sherpa Signup <sherpa_signup\@redhotpenguin.com>",
+            'From' => "Sherpa Signup <sherpa\@$DOMAIN>",
             'Subject' => 'Your Sherpa account is active'});
-    my $msg = <<MSG;
-Thank you for signing up for the Sherpa email reply service.  With this 
-service, you can forward your Basecamp emails to $recipient with a comment 
-above the forwarded message, and the comment will be posted to your basecamp 
-account located at $url.
-
-We hope you enjoy this free 30 day trial.  As the end of the trial draws 
-near, we will send you a link which will allow you to purchase an account. 
-
-To reply to a basecamp email, simply forward the email to $recipient with 
-your comments at the top of the forwarded email.  For example:
-
-_________________________________________________________________________
-This is the comment I am forwarding to fred_sherpa\@redhotpenguin.com
-
-To terminate my comment, I will hit return or enter three times to
-separate my comment from the original message.
-
-
-
------Original Message-----
-From: Test Person <do-not-reply-C3212710\@prdf.clientsection.com>
-To: Fred Moyer <fred\@redhotpenguin.com>
-Subject: [SL] Re: test message
-Date: Sat, 5 Aug 2006 19:45:58 -0500
-
-A new comment has been posted. DO NOT REPLY TO THIS EMAIL.
-To post your own comment or read the original message, visit:
-http://prdf.clientsection.com/P3029497
-
------------------------------------------------------------------
-Company: Sherpa QS
-Project: QA
------------------------------------------------------------------
-Test Person posted this comment:
-.................................................................
-
-   We are in beta now.
-
-   --
-   DO NOT REPLY TO THIS EMAIL
-   To post a comment of your own, read the original message, or to
-   read all existing comments, visit:
-   http://prdf.clientsection.com/C3212710
-MSG
-
-	print $mailer $msg;
+	
+    my $output = $self->tt_process('signup_email.tmpl', {
+		domain    => $DOMAIN,
+        recipient => $recipient,
+		phone     => $PHONE,
+	  }
+	);
+	
+	print $mailer $$output;
     $mailer->close;
 
     $self->header_type('redirect');
-    $self->header_props(-url => 'http://sherpa.redhotpenguin.com/signup/thanks.html');
+    $self->header_props(-url => 'http://www.sherpamail.com/signup/thanks.html');
 }
 
 1;

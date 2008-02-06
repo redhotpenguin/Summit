@@ -2,7 +2,7 @@
 <html>
 <head>
 <title>Sherpa Signup</title>
-<link rel="stylesheet" href="/css/sherpa/styles.css" type="text/css" />
+<link rel="stylesheet" href="http://www.silverliningnetworks.com/sherpa/styles.css" type="text/css" />
 <script type="text/javascript">
     var theForm;
     var requestSubmitted = false;  
@@ -30,50 +30,57 @@
 
   <div id="top">
 		  <p class="sherpa_logo">
-			<a href="/learn.html"><img border="0" src="/img/sherpa/logo.gif"></a>
+			<a href="http://www.sherpamail.com/"><img border="0" src="http://www.silverliningnetworks.com/sherpa/logo.gif"></a>
 			</p>
 	  <div id="right_top">
 			<a href="/cgi-bin/sherpa/signup.cgi">
-				<img border="0" src="/img/sherpa/ready.gif"></a>
+				<img border="0" src="http://www.silverliningnetworks.com/sherpa/ready.gif"></a>
+			<a href="http://www.sherpamail.com/support.html">
+				<img border="0" src="http://www.silverliningnetworks.com/sherpa/support.gif"></a>
 		<div id="buttons">
-			<a href="http://sherpa.redhotpenguin.com/learn.html">
-				<img border="0" src="/img/sherpa/buttons/learn_more_off.gif"></a>
+			<a href="http://www.sherpamail.com/learn.html">
+				<img border="0" src="http://www.silverliningnetworks.com/sherpa/buttons/learn_more_off.gif"></a>
 			<a href="/cgi-bin/sherpa/signup.cgi">
-				<img border="0" src="/img/sherpa/buttons/signup_on.gif"></a>
+				<img border="0" src="http://www.silverliningnetworks.com/sherpa/buttons/signup_on.gif"></a>
 		</div>
 	  </div>
   </div>
   <div id="main">
-	  <div id="tanbar">  
-	<img src="/img/sherpa/tanbar.gif">
-	</div>
-
-
 
 <div id="content">
+<p style="text-align: center;">
 <form method="post" action="/cgi-bin/sherpa/signup.cgi" name="signup">
 <input type="hidden" name="rm" value="thanks">
 <p>&nbsp;</p>
-<p class="content" style="font-size: 24px; color: #003365;">Signup</p>
-  <p class="content" style="font-weight: normal;">Thank you for your interest in sherpa.  Please complete the following form to register for your free 30 day trial sherpa account.  Once you signup, you will receive an email and be ready to go immediately.</p>
+<div id="form">
+<p class="main_form">
+    <p class="content" style="font-size: 28px; color: #FF7F04;">Signup</p>
+  <p class="content" style="font-weight: normal;">Thank you for your interest in sherpa.  Please complete the following form to register for your free 30 day trial sherpa account.  After 30 days, sherpa costs just $20 for a full year.  Once you signup, you will receive an email and be ready to go immediately.</p>
     [% IF any_errors %]
-    <p class="content"><font color="red">Please correct the fields highlighted in red</font></p>
-  [% END %]  
+    <p class="content"><img src="http://www.silverliningnetworks.com/sherpa/error_icon.gif">&nbsp;&nbsp;<font color="red">Please correct the fields highlighted in red</font>&nbsp;</p>
+    <ul>
+[% END %]  
   [% IF err_login %]
-    <p class="content"><font color="red">There was a problem with your Basecamp login information</font></p>
+    <p class="content"><font color="red"><li>There was a problem with your Basecamp login information</li></font></p>
   [% END %]
-
   [% IF err_url %]
-    <p class="content"><font color="red">There was a problem with your Basecamp URL</font></p>
+    <p class="content"><font color="red"><li>There was a problem with your Basecamp URL</li></font></p>
   [% END %]
 
+  [% IF err_email %]
+    <p class="content"><font color="red"><li>Please check your email address</li></font></p>
+  [% END %]
   [% IF err_dupe_user %]
-    <p class="content"><font color="red">Sorry you've already signed up with that email address and basecamp user combination.</font></p>
+    <p class="content"><font color="red"><li>Sorry you've already signed up with that email address and basecamp user combination.</li></font></p>
   [% END %]
-    <input type="hidden" name="dupe_user" value="1">
+    [% IF any_errors %]
+    </ul>
+    [% END %]
 
-<p class="content">
-	<table>
+<input type="hidden" name="dupe_user" value="1">
+
+<p class="text-align: center;">
+	<table style="width: 550px;border: 1px solid; border-color: #CCCCCC; padding: 5px;">
 	<tr>
 <td class="content_form">
   [% IF err_name %]
@@ -82,7 +89,7 @@
 	Name this account:&nbsp;</td>
     <td><input type="text" size="10" maxlength="10" name="name" value="[% name %]"></td>
 </tr><tr>
-<td>&nbsp;</td><td class="content_light">(choose any word, e.g. sherpa)</td>
+<td>&nbsp;</td><td class="content_light">(This can be any name, but it can be helpful to use your Basecamp Company name)</td>
 </tr>
 
 <td class="content_form">
@@ -123,13 +130,13 @@ Basecamp Username:&nbsp;</td>
 	<td>&nbsp;</td></tr><td>
 <td class="content_light">(e.g. http://yoursite.clientsection.com)</td>
 </tr></table>
+</p>
   <p style="text-align: center;" class="signup_button"><input type="submit" value="Signup" onclick="javascript: return disableButton(this,signup,null)"></p>
 </form>
 <p class="content">* Your password is needed to post your comments to Basecamp.  It is stored encrypted in our database.  We take security very seriously.</p>
-
 </div>
 </div>
-	<img class="signup_bevel" src="/img/sherpa/whitebevel.gif">
+</div>
 </body>
 </html>
 
