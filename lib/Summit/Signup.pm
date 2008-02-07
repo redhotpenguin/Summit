@@ -107,7 +107,9 @@ sub _dupe_user {
     return 1 unless ( $email && $login );    # lower precedence constraint
     my $db_connect_params = Summit::DB->params( );
 
-    #	print STDERR "DB connect params are " . Dumper($db_connect_params);
+    print STDERR "DB connect params are " .
+        Data::Dumper::Dumper($db_connect_params) if DEBUG;
+
     die unless $db_connect_params;
     my $dbh = DBI->connect( @{$db_connect_params} );
 
@@ -171,6 +173,7 @@ sub thanks {
     };
 
     my ( $results, $err_page ) = $self->check_rm( 'signup', $valid );
+
     return $err_page if ($err_page);
 
     my $valid_data = $results->valid();

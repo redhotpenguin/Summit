@@ -17,7 +17,8 @@ sub params {
     my $db_user = $args{db_user} || 'summit';
     my $db_pass = $args{db_pass} || '';
     my $db_name = $args{db_name} || 'summit';
-    my $db_host = $args{db_host} || 'localhost';
+    my $db_host = $args{db_host};
+
     my $db_options = {
         RaiseError         => 1,
         PrintError         => 1,
@@ -26,7 +27,8 @@ sub params {
         ShowErrorStatement => 1,
         ChopBlanks         => 1,
     };
-    my $dsn = qq/dbi:Pg:dbname='$db_name';host=$db_host/;
+    my $dsn = qq/dbi:Pg:dbname='$db_name';/;
+    $dsn .= "host=$db_host;" if $db_host;
 
     my @connect = ( $dsn, $db_user, $db_pass, $db_options );
 	return wantarray ? @connect : \@connect
