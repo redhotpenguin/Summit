@@ -132,6 +132,7 @@ SQL
 
 sub thanks {
     my $self  = shift;
+	print STDERR "thanks start\n" if DEBUG;
     my $valid = {
         required => [
             qw( email login  pass
@@ -174,13 +175,19 @@ sub thanks {
 
     my ( $results, $err_page ) = $self->check_rm( 'signup', $valid );
 
-    return $err_page if ($err_page);
+	if ($err_page) {
+		print STDERR "errors in arguments, returning\n" if DEBUG;
+		return $err_page;
+	} else {
+		print STDERR "no errors in form\n" if DEBUG;
+	}
 
     my $valid_data = $results->valid();
 
     my $db_connect_params = Summit::DB->params( );
     die unless $db_connect_params;
-    my $dbh = DBI->connect( @{$db_connect_params} );
+
+	my $dbh = DBI->connect( @{$db_connect_params} );
 
     my $sql = <<SQL;
 INSERT INTO account (basecamp_login, basecamp_pass,
@@ -205,7 +212,7 @@ SQL
         {
             'To'      => $ADMIN,
             'From'    => $FROM,
-            'Subject' => $valid_data->{email} . " has signed up!"
+            'Subject' => $valid_data->{email} . " has signed up!",
         }
     );
 
