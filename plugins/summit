@@ -28,10 +28,35 @@ Copyright 2006 Red Hot Penguin Consulting LLC
 
 #use lib "/home/fred/dev/summit/trunk/lib";
 
-use constant SHERPA_OK => 200;
-use constant SHERPA_COMMENT_ERROR => 500;
-use constant SHERPA_NO_URL_FOUND => 404;
+use constant SHERPA_OK               => 200;
+use constant SHERPA_COMMENT_ERROR    => 500;
+use constant SHERPA_NO_URL_FOUND     => 404;
 use constant SHERPA_NO_COMMENT_FOUND => 406;
+
+our $SHERPA_FROM = 'sherpa@sherpamail.com';
+
+use constant SHERPA_OK_MSG => <<MSG;
+** Your sherpa response has been posted successfully
+MSG
+
+use constant SHERPA_FAIL_MSG_SUBJECT => <<MSG;
+** Your sherpa response could not be processed
+MSG
+
+use constant SHERPA_NO_URL_FOUND_MSG => <<MSG;
+We're sorry, we could not find a basecamp url in your message.  Please contact
+support at support\@sherpamail.com.
+MSG
+
+use constant SHERPA_COMMENT_ERR_MSG => <<MSG;
+There was a problem posting your comment.  Please contact support at
+support\@sherpamail.com.
+MSG
+
+use constant SHERPA_NO_COMMENT_FOUND_MSG => <<MSG;
+We couldn't find your comment for the message.  Please check your
+ message and try again or contact support\@sherpamail.com.
+MSG
 
 use Data::Dumper;
 use DBI;
@@ -41,37 +66,37 @@ use Summit::Message;
 my $VERSION = '0.01';
 
 sub init {
-    my ($self, $qp, %args) = @_;
+    my ( $self, $qp, %args ) = @_;
 
     my $params_ref = Summit::DB->params(%args);
     $self->{dbh_connect} = $params_ref;
 }
 
 sub hook_rcpt {
-    my ($self, $transaction, $recipient) = @_;
+    my ( $self, $transaction, $recipient ) = @_;
 
     my $sender = $transaction->sender->address;
-    $self->log(LOGDEBUG, "Recipient is " . $recipient->address);
-    $self->log(LOGDEBUG, "sender is $sender");
-    my ($basecamp_login, $basecamp_pass, $account_id) =
-      $self->_authenticate($sender, $recipient->address,);
+    $self->log( LOGDEBUG, "Recipient is " . $recipient->address );
+    $self->log( LOGDEBUG, "sender is $sender" );
+    my ( $basecamp_login, $basecamp_pass, $account_id ) =
+      $self->_authenticate( $sender, $recipient->address, );
 
-    if ($basecamp_login && $basecamp_pass) {
-        $self->log(LOGDEBUG, "Summit user found");
-        $self->register_hook('data_post', 'summit_handler');
+    if ( $basecamp_login && $basecamp_pass ) {
+        $self->log( LOGDEBUG, "Summit user found" );
+        $self->register_hook( 'data_post', 'summit_handler' );
         $self->{'basecamp_login'} = $basecamp_login;
         $self->{'basecamp_pass'}  = $basecamp_pass;
-		$self->{'account_id'}     = $account_id;
+        $self->{'account_id'}     = $account_id;
         return OK;
     }
-    $self->log(LOGINFO, "$sender is NOT A Summit user");
+    $self->log( LOGINFO, "$sender is NOT A Summit user" );
     return DECLINED;
 }
 
 sub _authenticate {
-    my ($self, $sender, $recipient) = @_;
+    my ( $self, $sender, $recipient ) = @_;
 
-    my $dbh = DBI->connect(@{$self->{dbh_connect}})
+    my $dbh = DBI->connect( @{ $self->{dbh_connect} } )
       or die print STDERR "Could not establish db connection";
     my $sql = <<SQL;
 SELECT basecamp_login, basecamp_pass, account_id from account
@@ -79,122 +104,156 @@ WHERE sender = ? AND recipient = ? AND active = 't'
 SQL
 
     my $sth = $dbh->prepare_cached($sql);
-    $sth->bind_param(1, $sender);
-    $sth->bind_param(2, $recipient);
+    $sth->bind_param( 1, $sender );
+    $sth->bind_param( 2, lc($recipient) );
     my $rv = $sth->execute;
-    $self->log(LOGDEBUG, "authentication query, params $sender, $recipient");
+    $self->log( LOGDEBUG, "authentication query, params $sender, $recipient" );
     unless ($rv) {
-        $self->log(LOGERROR, "Failed to execute $sql, err $DBI::errstr");
+        $self->log( LOGERROR, "Failed to execute $sql, err $DBI::errstr" );
         return;
     }
 
     my $ary_ref = $sth->fetchrow_arrayref;
-    $self->log(LOGDEBUG, "Query results: " . Dumper($ary_ref));
+    $self->log( LOGDEBUG, "Query results: " . Dumper($ary_ref) );
 
     $dbh->rollback;
 
-    if ($ary_ref->[0]) {
-        return (@{$ary_ref});
+    if ( $ary_ref->[0] ) {
+        return ( @{$ary_ref} );
     }
     return;
 }
 
 sub _get_body {
-    my $transaction = shift;
+    my ( $self, $transaction ) = @_;
+    return $self->{__BODY} if defined $self->{__BODY};
     $transaction->body_resetpos;
     my $body;
-    while (my $line = $transaction->body_getline) {
+    while ( my $line = $transaction->body_getline ) {
         $body .= $line;
     }
+    $self->{__BODY} = $body;
     return $body;
 }
 
 sub summit_handler {
-    my ($self, $transaction) = @_;
+    my ( $self, $transaction ) = @_;
 
     $DB::single = 1;
     my @recipients = $transaction->recipients;
     my $recipient  = $recipients[0]->address;
     my $sender     = $transaction->sender->address;
-    $self->log(LOGDEBUG, "recipient is " . Dumper($recipient));
+    $self->log( LOGDEBUG, "recipient is " . Dumper($recipient) );
 
-    my $body = _get_body($transaction);
+    my $body = $self->_get_body($transaction);
 
     #	$self->log(LOGDEBUG, "Transaction body" . $body);
-    my $msg =
-      Summit::Message->new(
-                           {
-                            headers => $transaction->header->as_string,
-                            body   => $body
-                           }
-                          );
-    $msg->basecamp_login($self->{'basecamp_login'});
-    $msg->basecamp_pass($self->{'basecamp_pass'});
+    my $msg = Summit::Message->new(
+        {
+            headers => $transaction->header->as_string,
+            body    => $body
+        }
+    );
+    $msg->basecamp_login( $self->{'basecamp_login'} );
+    $msg->basecamp_pass( $self->{'basecamp_pass'} );
 
     no strict 'refs';
-    return &no_url_found($self, $transaction)     if !$msg->url;
-    return &no_comment_found($self, $transaction) if !$msg->comment;
-    return &comment_error($self, $transaction, $msg) if !$msg->post_to_basecamp;
-    return &send_receipt($self, $transaction);
-}
-
-sub no_comment_found {
-    my ($self, $transaction) = @_;
-    $self->log(LOGERROR, "Hmm no post message found");
-	$self->_log_transaction(SHERPA_NO_COMMENT_FOUND);    
-    my $msg = <<MSG;
-\nWe couldn't find your comment.  Please make sure that it had at least two returns separating it from the original message\n\n
-MSG
-    $transaction->body_front_write($msg);
-    $transaction->recipients($transaction->sender);
-    return OK;
+    return &no_url_found( $self, $transaction, $msg )	  if !$msg->url;
+    return &no_comment_found( $self, $transaction, $msg ) if !$msg->comment;
+    return &comment_error( $self, $transaction, $msg )
+		if !$msg->post_to_basecamp;
+    return &sherpa_ok( $self, $transaction, $msg );
 }
 
 sub _log_transaction {
-	my ($self, $code) = @_;
+    my ( $self, $code ) = @_;
 
-    my $dbh = $self->{dbh} || (DBI->connect(@{$self->{dbh_connect}})
-      or die print STDERR "Could not establish db connection");
+    my $dbh = $self->{dbh}
+      || ( DBI->connect( @{ $self->{dbh_connect} } )
+        or die print STDERR "Could not establish db connection" );
 
     my $sql = <<SQL;
 INSERT INTO TRANSACTION (account_id, code) values (?, ?)
 SQL
-	my $sth = $dbh->prepare($sql);
-    $sth->bind_param(1, $self->{'account_id'});
-    $sth->bind_param(2, $code);
+    my $sth = $dbh->prepare($sql);
+    $sth->bind_param( 1, $self->{'account_id'} );
+    $sth->bind_param( 2, $code );
     my $rv = $sth->execute;
-	$dbh->commit;
-	defined $rv ? return 1 : return;
+    $dbh->commit;
+    defined $rv ? return 1 : return;
 }
 
+sub sherpa_ok {
+    my ( $self, $transaction, $msg ) = @_;
 
-sub send_receipt {
-    my ($self, $transaction) = @_;
-	$self->_log_transaction(SHERPA_OK);    
-    $transaction->recipients($transaction->sender);
-    my $response = "\n** Your response has been posted\n";
-    $transaction->body_front_write($response);
-	$self->log(LOGERROR, "body is \n" . $self->body_as_string . "\n");    
-return OK;
+    $self->_log_transaction(SHERPA_OK);
+    $self->log( LOGDEBUG, "response is " . $transaction->body_as_string );
+    my $to = $transaction->sender;
+    $transaction->recipients( $to);
+    my $from = Qpsmtpd::Address->new("<$SHERPA_FROM>");
+    $transaction->sender($from);
+    $transaction->header->replace( "Subject", SHERPA_OK_MSG );
+    $transaction->header->replace("Content-Type", 'text/plain');
+    $transaction->header->replace("From", $from->format);
+    $transaction->header->replace("To", $to->format);
+    $transaction->body_front_write( 
+        $msg->text_plain_response(SHERPA_OK_MSG) );
+    return OK;
 }
 
 sub no_url_found {
-    my ($self, $transaction) = @_;
+    my ( $self, $transaction, $msg ) = @_;
 
-	$self->_log_transaction(SHERPA_NO_URL_FOUND);    
-    $self->log(LOGERROR, "Hmm no url found");
-    my $msg = "\nSorry we couldn't find a basecamp url in your message\n\n";
-    $transaction->body_front_write($msg);
-    $transaction->recipients($transaction->sender);
+    $self->_log_transaction(SHERPA_NO_URL_FOUND);
+    $self->log( LOGERROR,
+        "Hmm no url found.  Sending this response to client:" );
+    $self->log( LOGERROR, SHERPA_NO_URL_FOUND_MSG);
+    my $to = $transaction->sender;
+    $transaction->recipients( $to);
+    my $from = Qpsmtpd::Address->new("<$SHERPA_FROM>");
+    $transaction->sender($from);
+    $transaction->header->replace( "Subject", SHERPA_FAIL_MSG_SUBJECT, $msg );
+    $transaction->header->replace("Content-Type", 'text/plain');
+    $transaction->header->replace("From", $from->format);
+    $transaction->header->replace("To", $to->format);
+    $transaction->body_front_write(
+        $msg->text_plain_response(SHERPA_NO_URL_FOUND_MSG) );
     return OK;
 }
 
 sub comment_error {
-    my ($self, $transaction, $msg) = @_;
-	$self->_log_transaction(SHERPA_COMMENT_ERROR);    
-    $self->log(LOGERROR, $msg->_comment_err_log);
-    $transaction->body_front_write($msg->_comment_err_msg);
-    $transaction->recipients($transaction->sender);
+    my ( $self, $transaction, $msg ) = @_;
+
+    $self->_log_transaction(SHERPA_COMMENT_ERROR);
+    $self->log( LOGERROR, $msg->_comment_err_log );
+    my $to = $transaction->sender;
+    $transaction->recipients( $to);
+    my $from = Qpsmtpd::Address->new("<$SHERPA_FROM>");
+    $transaction->sender($from);
+    $transaction->header->replace( "Subject", SHERPA_FAIL_MSG_SUBJECT );
+    $transaction->header->replace("Content-Type", 'text/plain');
+    $transaction->header->replace("From", $from->format);
+    $transaction->header->replace("To", $to->format);
+    $transaction->body_front_write(
+        $msg->text_plain_response(SHERPA_COMMENT_ERR_MSG) );
+    return OK;
+}
+
+sub no_comment_found {
+    my ( $self, $transaction, $msg ) = @_;
+
+    $self->_log_transaction(SHERPA_NO_COMMENT_FOUND);
+    $self->log( LOGERROR, "Hmm no post message found" );
+    my $to = $transaction->sender;
+    $transaction->recipients( $to);
+    my $from = Qpsmtpd::Address->new("<$SHERPA_FROM>");
+    $transaction->sender($from);
+    $transaction->header->replace( "Subject", SHERPA_FAIL_MSG_SUBJECT );
+    $transaction->header->replace("Content-Type", 'text/plain');
+    $transaction->header->replace("From", $from->format);
+    $transaction->header->replace("To", $to->format);
+    $transaction->body_front_write(
+        $msg->text_plain_response( SHERPA_NO_COMMENT_FOUND_MSG) );
     return OK;
 }
 
