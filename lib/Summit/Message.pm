@@ -28,7 +28,7 @@ use constant ACCOUNT_TRIAL => 1;
 Instantiates a new object.
 
   my $obj = $class->new($args_ref);
-
+  
 =over 4
 
 =item pkg: C<$class> ( C<[PACKAGE]> CLASS ref )
@@ -44,6 +44,16 @@ A reference to the arguments you are passing to the constructor.
 =back
 
 =cut
+use LWP::ConnCache ();
+our $conn_cache;
+BEGIN {
+    $conn_cache = LWP::ConnCache->new();
+}
+my %args = ( cookie_jar => {},
+    agent        =>
+'Mozilla/5.0 (Macintosh; U; PPC Mac OS X Mach-O; en-US; rv:1.8.0.2) Gecko/20060308 Firefox/1.5.0.2' );
+
+my $DOMAIN = 'sherpamail.com';
 
 sub new {
     my ($class, $args_ref) = @_;
@@ -130,8 +140,6 @@ sub basecamp_pass {
     return $self->{_basecamp_pass};
 }
 
-# pulls the comment out of the message
-
 sub comment {
     my $self = shift;
 
@@ -145,7 +153,6 @@ sub comment {
     $body = $self->entity->body_as_string;
 
     my $comment = _extract_comment($body);
-
     if (defined $comment && $comment =~ m/\S/) {
         chomp($comment);
         $self->{_comment} = $comment;
@@ -177,12 +184,51 @@ sub _extract_comment {
   }
 
   # hrm no comment
-  return;
+   return;
 
     # LEGACY CODE - remove
     # split on ---- Forwarded Messaqe
-    #          ---------- Original Message
-    #my ($comment) = split(/[-]{4,10}/, $body);
+    # ---------- Original Message
+ #my ($comment) = split(/[-]{4,10}/, $body);
+}
+
+sub text_plain_response {
+	my ($self, $response) = @_;
+
+    $response = "\n" . '-' x 72 . "\n" . $response;
+	$response .= "\n\nThread Url: "      . $self->url if $self->url;
+	$response .= "\n\nThread Comment: " . $self->comment if $self->comment;
+	$response .= "\n" . '-' x 72 . "\n";
+	$response .= "\n" . '-' x 72;
+    $response .= "\nYour original message is below the next line";
+	$response .= "\n" . '-' x 72 . "\n";
+	return $response;
+#	my $new_body = MIME::Entity->build(
+#		Type => 'text/plain',
+#		Data => $response,
+#	);
+#    my $string = $new_body->stringify_body;
+#	return $new_body->stringify_body;
+}
+
+sub rfc_822_response {
+	my ($self, $response, $msg) = @_;
+	
+	$response .= "\n\nThread URL: "     . $msg->url if $msg->url;
+	$response .= "\n\nThread Comment: " . $msg->comment if $msg->comment;
+	$response .= "\n";
+
+	my $new_body = MIME::Entity->build(Type => 'multipart/mixed');
+	$new_body->attach(
+		Type => 'text/plain',
+		Data => $response,
+	);
+#	$new_body->attach(
+#		Type => 'message/rfc822',
+#		Data => $self->entity->as_string,
+#	);
+    my $string = $new_body->stringify_body;
+	return $new_body->stringify_body;
 }
 
 sub url {
@@ -199,7 +245,7 @@ sub url {
     }
 
     my ($url) =
-      $body =~ m{(http://\w+\.(?:clientsection|projectpath)\.com/\w+)}s;
+      $body =~ m{(https?://\w+\.(?:clientsection|updatelog|seework|grouphub|projectpath)\.com/\w+)}s;
 
     return unless defined $url;
 
@@ -217,11 +263,11 @@ sub post_to_basecamp {
     my $comment = $self->comment;
     if ($self->account_type == ACCOUNT_TRIAL) {
         $comment .=
-          "\n- comment posted via Sherpa (http://sherpa.redhotpenguin.com)";
+          "\n- comment posted via sherpa (http://$DOMAIN)";
     }
 
-    my $mech = WWW::Mechanize->new(cookie_jar => {});
-
+    my $mech = WWW::Mechanize->new(%args);
+    $mech->conn_cache($conn_cache);
     # Time to have some fun
     $mech->get($self->url);
     unless ($mech->success) {
