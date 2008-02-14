@@ -160,7 +160,7 @@ sub thanks {
                 name              => 'password_check',
                 params            => [qw(pass retype)],
                 constraint_method => \&_passwd,
-              }
+              },
               email => 'email',
             name    => qr/^\w+$/,
         },
