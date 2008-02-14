@@ -187,17 +187,15 @@ sub sherpa_ok {
     my ( $self, $transaction, $msg ) = @_;
 
     $self->_log_transaction(SHERPA_OK);
-    $self->log( LOGDEBUG, "response is " . $transaction->body_as_string );
+    #$self->log( LOGDEBUG, "response is " . $transaction->body_as_string );
     my $to = $transaction->sender;
-    $transaction->recipients( $to);
+    $transaction->recipients( $to );
     my $from = Qpsmtpd::Address->new("<$SHERPA_FROM>");
     $transaction->sender($from);
     $transaction->header->replace( "Subject", SHERPA_OK_MSG );
     $transaction->header->replace("Content-Type", 'text/plain');
     $transaction->header->replace("From", $from->format);
     $transaction->header->replace("To", $to->format);
-    $transaction->body_front_write( 
-        $msg->text_plain_response(SHERPA_OK_MSG) );
     return OK;
 }
 

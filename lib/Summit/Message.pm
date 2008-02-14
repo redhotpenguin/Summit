@@ -195,9 +195,9 @@ sub _extract_comment {
 sub text_plain_response {
 	my ($self, $response) = @_;
 
-    $response = "\n" . '-' x 72 . "\n" . $response;
-	$response .= "\n\nThread Url: "      . $self->url if $self->url;
-	$response .= "\n\nThread Comment: " . $self->comment if $self->comment;
+#    $response = "\n" . '-' x 72 . "\n" . $response;
+	$response = "\n\nThread Url: "      . $self->url if $self->url;
+	$response .= "\nThread Comment: " . $self->comment if $self->comment;
 	$response .= "\n" . '-' x 72 . "\n";
 	$response .= "\n" . '-' x 72;
     $response .= "\nYour original message is below the next line";
