@@ -130,6 +130,8 @@ sub basecamp_pass {
     return $self->{_basecamp_pass};
 }
 
+# pulls the comment out of the message
+
 sub comment {
     my $self = shift;
 
@@ -142,9 +144,8 @@ sub comment {
     # or the body as string if no mime entities
     $body = $self->entity->body_as_string;
 
-    # split on ---- Forwarded Messaqe
-    #          ---------- Original Message
-    my ($comment) = split(/[-]{4,10}/, $body);
+    my $comment = _extract_comment($body);
+
     if (defined $comment && $comment =~ m/\S/) {
         chomp($comment);
         $self->{_comment} = $comment;
@@ -153,6 +154,35 @@ sub comment {
 
     ## Hmmm, no comment extracted so just return;
     return;
+}
+
+sub _extract_comment {
+  my $body = shift;
+  die 'no body' unless $body;
+
+  my $comment;
+  # squirrelmail style
+  # see if this uses ---- Original Message -----
+  my $re = qr/^[-]{4,}\s?Original\sMessage\s?[-]{4,}/m;
+  if ( $body =~ m/$re/) {
+    ($comment) = split(/$re/, $body);
+    return $comment if $comment;
+  }
+
+  # not squirrelmail, try iPhone style
+  $re = qr/^Begin\sforwarded\smessage\:/m;
+  if ( $body =~ m/$re/) {
+    ($comment) = split(/$re/, $body);
+    return $comment if $comment;
+  }
+
+  # hrm no comment
+  return;
+
+    # LEGACY CODE - remove
+    # split on ---- Forwarded Messaqe
+    #          ---------- Original Message
+    #my ($comment) = split(/[-]{4,10}/, $body);
 }
 
 sub url {
