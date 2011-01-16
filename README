@@ -4,6 +4,8 @@
 
 =head1 DESCRIPTION
 
+Out of date.  Basecamp added reply by email functionality a couple years after this code was written.  It is here for educational purposes only.
+
  A qpsmtpd based plugin which accepts forwarded basecamp emails, grabs the url,
 logs into basecamp and posts a comment which is located at the top of the
 forwarded email and is ended with two linefeeds or carraige returns.
